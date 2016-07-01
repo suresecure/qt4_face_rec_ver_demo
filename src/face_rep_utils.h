@@ -21,10 +21,12 @@ std::vector<std::string> &split(const std::string &s, char delim,
 std::vector<std::string> split(const std::string &s, char delim);
 
 // Get all files in "root" folder recursively.
-void get_all(const fs::path &root, const std::string &ext, std::vector<fs::path> &ret);
+void getAllFiles(const fs::path &root, const std::string &ext, std::vector<fs::path> &ret);
 
 // Find and crop face by using dlib.
-cv::Rect detectAlignCropDlib(face_rec_srzn::FaceAlign & face_align, const cv::Mat &img, cv::Mat & aligned_face);
+// Input: FaceAlign object, input image, aligned face, (inverse) affine matrix in alignment
+// Output: face rect detected in the input image
+cv::Rect detectAlignCropDlib(face_rec_srzn::FaceAlign & face_align, const cv::Mat &img, cv::Mat & aligned_face, cv::Mat & H, cv::Mat & inv_H);
 
 // Find valid face images in "image_root" by using dlib,
 // then save the aligned and cropped face image to "save_path".
@@ -32,5 +34,14 @@ void findValidFaceDlib(face_rec_srzn::FaceAlign & face_align,
     const std::string &image_root,
     const std::string &save_path,
     const std::string &ext = std::string(".jpg"));
+
+// Convert distance to similarity.
+float dist2sim(float dist);
+
+// A simple definition of 2D affine matrices distance.
+float affineDist(const cv::Mat & H1, const cv::Mat & H2);
+
+// Convert a 2D affine matrix to a square matrix by adding {0, 0, 1} to the last row.
+cv::Mat affine2square(const cv::Mat & H);
 
 #endif // FACE_REP_UTILS_H

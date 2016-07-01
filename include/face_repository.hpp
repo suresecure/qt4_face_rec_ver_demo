@@ -33,7 +33,7 @@ namespace face_rec_srzn {
       // Initial index from images whos paths specified in a ".txt" file. One face image per line.
       bool InitialIndex(string &path_list_file);
       // Initial index from images whos paths specified in a string vector. One face image per string.
-      bool InitialIndex(const vector<string> & filelist);
+      bool InitialIndex(const vector<string> & filelist, const vector<cv::Mat> & feature_list = vector<cv::Mat>());
 
       // Save face repository to the specified directory. Can customize file names. If any face add/remove after the initial index, FaceRepo::RebuildIndex() will be called before save.
       bool Save(const string & directory, 
@@ -66,7 +66,7 @@ namespace face_rec_srzn {
 
       // Add face(s) to the repository. FLANN will not rebuild index immediately. An automatic rebuild will be triged when the repository size doubled.
       bool AddFace(const string &file);
-      bool AddFace(const vector<string> & filelist);
+      bool AddFace(const vector<string> & filelist, const vector<cv::Mat> & feature_list = vector<cv::Mat>());
       // Remove one face from the repository. Just mark as removed, not really remove it. 
       bool RemoveFace(const string & face_path);
       bool RemoveFace(const size_t point_id);

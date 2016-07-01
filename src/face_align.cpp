@@ -95,10 +95,12 @@ dlib::rectangle FaceAlign::getLargestFaceBoundingBox(dlib::cv_image<dlib::bgr_pi
 }
 
 cv::Mat  FaceAlign::align(dlib::cv_image<dlib::bgr_pixel> &rgbImg, 
-    dlib::rectangle bb,
-    const int imgDim, 
-    const int landmarkIndices[],
-    const float scale_factor)
+                          cv::Mat & H,
+                          cv::Mat & inv_H,
+                          dlib::rectangle bb,
+                          const int imgDim,
+                          const int landmarkIndices[],
+                          const float scale_factor)
 {
     if (bb.is_empty())
         bb = this->getLargestFaceBoundingBox(rgbImg);
@@ -142,7 +144,8 @@ cv::Mat  FaceAlign::align(dlib::cv_image<dlib::bgr_pixel> &rgbImg,
         dstPoints[i] += cv::Point2f(0.5*imgDim, 0.5*imgDim);
         //std::cout<<dstPoints[i]<<std::endl;
     }
-    cv::Mat H = cv::getAffineTransform(srcPoints, dstPoints);
+    H = cv::getAffineTransform(srcPoints, dstPoints);
+    inv_H = cv::getAffineTransform(dstPoints, srcPoints);
     cv::Mat warpedImg = dlib::toMat(rgbImg);
     cv::warpAffine(warpedImg, warpedImg, H, cv::Size(imgDim, imgDim));
     return warpedImg;

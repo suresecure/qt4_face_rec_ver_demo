@@ -21,11 +21,13 @@ public:
     std::vector<dlib::rectangle> getAllFaceBoundingBoxes(dlib::cv_image<dlib::bgr_pixel> & rgbImg);
     dlib::rectangle getLargestFaceBoundingBox(dlib::cv_image<dlib::bgr_pixel> & rgbImg);
     std::vector<dlib::point> findLandmarks(dlib::cv_image<dlib::bgr_pixel> &rgbImg, dlib::rectangle bb);
-    cv::Mat align(dlib::cv_image<dlib::bgr_pixel> &rgbImg,  
-        dlib::rectangle bb=dlib::rectangle(),
-        const int imgDim=224,
-        const int landmarkIndices[]=FaceAlign::INNER_EYES_AND_BOTTOM_LIP,
-        const float scale_factor=0.0);
+    cv::Mat align(dlib::cv_image<dlib::bgr_pixel> &rgbImg,
+                  cv::Mat & H,  // The affine matrix to the template
+                  cv::Mat & inv_H, // Inverse affine matrix
+                  dlib::rectangle bb=dlib::rectangle(),
+                  const int imgDim=224,
+                  const int landmarkIndices[]=FaceAlign::INNER_EYES_AND_BOTTOM_LIP,
+                  const float scale_factor=0.0);
 
     // Landmark indices corresponding to the inner eyes and bottom lip.
     static const int INNER_EYES_AND_BOTTOM_LIP[];

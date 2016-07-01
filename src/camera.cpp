@@ -6,15 +6,14 @@ Camera::~Camera()
 
 void Camera::slotRun()
 {
-    // TODO: clean up. Would be nice not to have nested `if` statements
-    if (!videoCapture_ or !usingVideoCamera_)
+    if (!video_capture_ || !using_video_camera_)
     {
-        if (usingVideoCamera_)
-            videoCapture_.reset(new cv::VideoCapture(cameraIndex_));
+        if (using_video_camera_)
+            video_capture_.reset(new cv::VideoCapture(camera_index_));
         else
-            videoCapture_.reset(new cv::VideoCapture(videoFileName_));
+            video_capture_.reset(new cv::VideoCapture(video_file_name_));
     }
-    if (videoCapture_->isOpened())
+    if (video_capture_->isOpened())
     {
         timer_.start(0, this);
         emit sigStarted();
@@ -31,7 +30,7 @@ void Camera::timerEvent(QTimerEvent *ev)
     if (ev->timerId() != timer_.timerId())
         return;
     cv::Mat frame;
-    if (!videoCapture_->read(frame)) // Blocks until a new frame is ready
+    if (!video_capture_->read(frame)) // Blocks until a new frame is ready
     {
         timer_.stop();
         return;
@@ -41,15 +40,15 @@ void Camera::timerEvent(QTimerEvent *ev)
 
 void Camera::slotUsingVideoCamera(bool value)
 {
-    usingVideoCamera_ = value;
+    using_video_camera_ = value;
 }
 
 void Camera::slotCameraIndex(int index)
 {
-    cameraIndex_ = index;
+    camera_index_ = index;
 }
 
 void Camera::slotVideoFileName(QString fileName)
 {
-    videoFileName_ = fileName.toStdString().c_str();
+    video_file_name_ = fileName.toStdString().c_str();
 }

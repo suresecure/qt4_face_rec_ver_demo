@@ -18,18 +18,18 @@
 class Camera : public QObject
 {
     Q_OBJECT
-    QScopedPointer<cv::VideoCapture> videoCapture_;
+    QScopedPointer<cv::VideoCapture> video_capture_;
     QBasicTimer timer_;
     bool run_;
-    bool usingVideoCamera_;
-    int cameraIndex_;
-    cv::String videoFileName_;
+    bool using_video_camera_;
+    int camera_index_;
+    cv::String video_file_name_;
 
 public:
     Camera(int camera_index=0, QObject* parent=0) : QObject(parent)
     {
-        cameraIndex_ = camera_index;
-        usingVideoCamera_ = true;
+        camera_index_ = camera_index;
+        using_video_camera_ = true;
     }
 
     ~Camera();

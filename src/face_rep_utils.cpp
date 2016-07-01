@@ -42,7 +42,7 @@ std::vector<std::string> split(const std::string &s, char delim) {
     return elems;
 }
 
-void get_all(const fs::path &root, const std::string &ext, std::vector<fs::path> &ret) {
+void getAllFiles(const fs::path &root, const std::string &ext, std::vector<fs::path> &ret) {
     if (!fs::exists(root) || !fs::is_directory(root))
         return;
     fs::recursive_directory_iterator it(root);
@@ -58,7 +58,7 @@ void get_all(const fs::path &root, const std::string &ext, std::vector<fs::path>
 /*
  * Find and crop face by dlib. Return cv::rect in the input image, and store aligned face in "aligned_face".
  */
-cv::Rect detectAlignCropDlib(FaceAlign & face_align, const Mat &img, Mat & aligned_face) {
+cv::Rect detectAlignCropDlib(FaceAlign & face_align, const Mat &img, Mat & aligned_face, Mat & H, Mat & inv_H) {
 
     if (img.empty()) {
         return cv::Rect(0, 0, 0, 0);
@@ -81,7 +81,7 @@ cv::Rect detectAlignCropDlib(FaceAlign & face_align, const Mat &img, Mat & align
     }
 
     // Alignment
-    aligned_face = face_align.align(cimg, dets[0],
+    aligned_face = face_align.align(cimg, H, inv_H, dets[0],
             FACE_ALIGN_SCALE,
             FaceAlign::INNER_EYES_AND_BOTTOM_LIP,
             FACE_ALIGN_SCALE_FACTOR);
@@ -97,7 +97,7 @@ void findValidFaceDlib(FaceAlign & face_align,
     vector<fs::path> file_path;
 
     fs::path root(image_root);
-    get_all(root, ext, file_path);
+    getAllFiles(root, ext, file_path);
     int N = file_path.size();
     if (0 == N)
     {
@@ -110,8 +110,8 @@ void findValidFaceDlib(FaceAlign & face_align,
     for (int i = 0; i < N; i++) {
         cout<<file_path[i]<<endl;
         Mat face = imread(file_path[i].string());
-        Mat face_cropped;
-        Rect face_detect = detectAlignCropDlib(face_align, face, face_cropped);
+        Mat face_cropped, H, inv_H;
+        Rect face_detect = detectAlignCropDlib(face_align, face, face_cropped, H, inv_H);
         if (0 == face_detect.area())
             continue;
 
@@ -124,4 +124,34 @@ void findValidFaceDlib(FaceAlign & face_align,
         cout<<"Save detected face to: "<<dest_path<<endl;
         imwrite(dest_path.string(), face_cropped);
     }
+}
+
+float dist2sim(float dist)
+{
+    float maxDist = 2.24;  // Empirical value
+    if (dist < 0 || dist > maxDist)
+        return 0;
+    return (maxDist - dist)/maxDist;
+}
+
+// TODO
+float affineDist(const cv::Mat & H1, const cv::Mat &  H2)
+{
+    assert(H1.size() == Size(2, 3));
+    assert(H2.size() == Size(2, 3));
+    return -1;
+}
+
+cv::Mat affine2square(const cv::Mat & H)
+{
+    assert(H.size() == Size(2, 3));
+
+    Mat M(3, 3, H.type());
+    H.row(0).copyTo(M.row(0));
+    H.row(1).copyTo(M.row(1));
+    M.at<double>(2,0) = 0.0;
+    M.at<double>(2,1) = 0.0;
+    M.at<double>(2,2) = 1.0;
+
+    return M;
 }
