@@ -21,7 +21,8 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/Modules/")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 
 add_library(dlib SHARED IMPORTED)   # Dynamic import
-set_target_properties(dlib PROPERTIES IMPORTED_LOCATION /home/robert/myCoding/suresecure/qt4_face_rec_ver_demo/lib/libdlib.so)
+#set_target_properties(dlib PROPERTIES IMPORTED_LOCATION /home/robert/myCoding/suresecure/qt4_face_rec_ver_demo/lib/libdlib.so)
+set_target_properties(dlib PROPERTIES IMPORTED_LOCATION ${CMAKE_SOURCE_DIR}/lib/libdlib.so)
 include(dlib/cmake/)
 
 ## ------------------------------------------

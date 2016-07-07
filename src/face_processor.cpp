@@ -534,11 +534,12 @@ void FaceProcessor::verAndSelectFace(const Mat & face, const Mat & feature, cons
     // Select and compare samples from face repository.
     vector<string>::iterator iter = find(person_.begin(), person_.end(), face_reg_ver_name_);
     int pos_person = iter - person_.begin();
-    for (int i = 0; i < SIMPLE_MIN(face_ver_sample_num_, person_image_path_[pos_person].size()); i ++)
+    for (int i = 0; !match && i < SIMPLE_MIN(face_ver_sample_num_, person_image_path_[pos_person].size()); i ++)
     {
         int j = rand() % person_image_path_[pos_person].size();
         Mat f = face_repo_->GetFeatureCV(person_image_path_[pos_person][j]);
-        match = norm(f, feature) < face_ver_th_dist_;
+        match = match || norm(f, feature) < face_ver_th_dist_;
+        cout<<"Verification, dist to "<<person_image_path_[pos_person][j]<<": "<<norm(f, feature)<<endl;
     }
 
     // Add face into the list.
