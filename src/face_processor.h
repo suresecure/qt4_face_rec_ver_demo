@@ -70,6 +70,8 @@ private:
     void queue(const cv::Mat & frame);
     void timerEvent(QTimerEvent* ev);
 
+    bool faceRepoInit();
+
     // Dispatch FaceRepo's image paths to each person.
     void dispatchImage2Person();
 
@@ -80,7 +82,7 @@ private:
 
     // For face verification or register
     bool checkFacePose(const Mat & feature, const Mat & H, const Mat & inv_H); // Check if the current face is valid.
-    void selectOneFace(const Mat & face, const Mat & feature, const Mat & H, const Mat & inv_H); // Select a face.
+    void verAndSelectFace(const Mat & face, const Mat & feature, const Mat & H, const Mat & inv_H); // Select a face.
     void cleanSelectedFaces(); // Clean verification or register statement.
 //    void faceRegister();
 
@@ -127,6 +129,7 @@ private:
     int  face_ver_knn_; // Size of return knn;
     float face_ver_th_dist_; // Distance threshold for same person.
     int face_ver_th_n_; // Least number of retrieved knn with same label.
+    int face_ver_sample_num_; // Number of sample faces to compare directly.
     int face_ver_num_; // Number of faces to be checked  in verification.
     int face_ver_valid_num_; // Minimun number of  accepted faces to verificate a person.
     cv::Mat face_ver_target_samlpe_; // A sample face of verification target person.

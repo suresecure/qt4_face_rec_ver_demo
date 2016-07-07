@@ -3,11 +3,9 @@
 #include <boost/filesystem.hpp>
 #include <opencv2/opencv.hpp>
 #include "face_recognition.hpp"
-#include "flann/flann.hpp"
-#include "flann/io/hdf5.h"
 #include "face_repository.hpp"
-#include "dlib/opencv.h"
-#include "dlib/image_processing/frontal_face_detector.h"
+//#include "dlib/opencv.h"
+//#include "dlib/image_processing/frontal_face_detector.h"
 #include "face_align.h"
 #include "settings.h"
 
@@ -15,16 +13,6 @@ namespace fs = ::boost::filesystem;
 using namespace cv;
 using namespace std;
 using namespace face_rec_srzn;
-
-static cv::Rect dlibRectangleToOpenCV(dlib::rectangle r)
-{
-  return cv::Rect(cv::Point2i(r.left(), r.top()), cv::Point2i(r.right() + 1, r.bottom() + 1));
-}
-
-static dlib::rectangle openCVRectToDlib(cv::Rect r)
-{
-  return dlib::rectangle((long)r.tl().x, (long)r.tl().y, (long)r.br().x - 1, (long)r.br().y - 1);
-}
 
 std::vector<std::string> &split(const std::string &s, char delim,
                                 std::vector<std::string> &elems) {
@@ -55,40 +43,40 @@ void getAllFiles(const fs::path &root, const std::string &ext, std::vector<fs::p
     }
 }
 
-/*
- * Find and crop face by dlib. Return cv::rect in the input image, and store aligned face in "aligned_face".
- */
-cv::Rect detectAlignCropDlib(FaceAlign & face_align, const Mat &img, Mat & aligned_face, Mat & H, Mat & inv_H) {
+///*
+// * Find and crop face by dlib. Return cv::rect in the input image, and store aligned face in "aligned_face".
+// */
+//cv::Rect detectAlignCropDlib(FaceAlign & face_align, const Mat &img, Mat & aligned_face, Mat & H, Mat & inv_H) {
 
-    if (img.empty()) {
-        return cv::Rect(0, 0, 0, 0);
-    }
+//    if (img.empty()) {
+//        return cv::Rect(0, 0, 0, 0);
+//    }
 
-    Mat img_cache;
-    if (img.channels() == 1)
-        cvtColor(img, img_cache, CV_GRAY2BGR);
-    else
-        img_cache = img;
-    dlib::cv_image<dlib::bgr_pixel> cimg(img);
+//    Mat img_cache;
+//    if (img.channels() == 1)
+//        cvtColor(img, img_cache, CV_GRAY2BGR);
+//    else
+//        img_cache = img;
+//    dlib::cv_image<dlib::bgr_pixel> cimg(img);
 
-    std::vector<dlib::rectangle> dets;
-    dets.push_back(face_align.getLargestFaceBoundingBox(cimg)); // Use the largest detected face only
+//    std::vector<dlib::rectangle> dets;
+//    dets.push_back(face_align.getLargestFaceBoundingBox(cimg)); // Use the largest detected face only
 
-    if (0 == dets.size() || dets[0].is_empty())
-    {
-        cout << "Cannot detect face!\n";
-        return cv::Rect(0, 0, 0, 0);
-    }
+//    if (0 == dets.size() || dets[0].is_empty())
+//    {
+//        cout << "Cannot detect face!\n";
+//        return cv::Rect(0, 0, 0, 0);
+//    }
 
-    // Alignment
-    aligned_face = face_align.align(cimg, H, inv_H, dets[0],
-            FACE_ALIGN_SCALE,
-            FaceAlign::INNER_EYES_AND_BOTTOM_LIP,
-            FACE_ALIGN_SCALE_FACTOR);
-    return dlibRectangleToOpenCV(dets[0]);
-}
+//    // Alignment
+//    aligned_face = face_align.align(cimg, H, inv_H, dets[0],
+//            FACE_ALIGN_SCALE,
+//            FaceAlign::INNER_EYES_AND_BOTTOM_LIP,
+//            FACE_ALIGN_SCALE_FACTOR);
+//    return dlibRectangleToOpenCV(dets[0]);
+//}
 
-void findValidFaceDlib(FaceAlign & face_align,
+void findValidFace(FaceAlign & face_align,
                        const string &image_root,
                        const string &save_path,
                        const string &ext) {
@@ -111,7 +99,11 @@ void findValidFaceDlib(FaceAlign & face_align,
         cout<<file_path[i]<<endl;
         Mat face = imread(file_path[i].string());
         Mat face_cropped, H, inv_H;
-        Rect face_detect = detectAlignCropDlib(face_align, face, face_cropped, H, inv_H);
+        Rect face_detect;
+        face_cropped = face_align.detectAlignCrop(face, face_detect, H, inv_H,
+                                                  FACE_ALIGN_SCALE,
+                                                  FaceAlign::INNER_EYES_AND_BOTTOM_LIP,
+                                                  FACE_ALIGN_SCALE_FACTOR);
         if (0 == face_detect.area())
             continue;
 

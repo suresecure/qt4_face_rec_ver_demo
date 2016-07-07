@@ -27,18 +27,23 @@ static const std::string face_image_home = "../images";
 // Minimum pose distance between faces in person verification or register.
 #define POSE_MIN_DIST  0.2
 // Use feature distance to select proper faces in person verification or register.
-#define FEATURE_MIN_DIST 0.1
+#define FEATURE_MIN_DIST 0.2
 #define FEATURE_MAX_DIST 0.6
 
 // Face recognition parameters.
-#define FACE_REC_KNN  10  // Size of return knn when searching face in face repository.
+#define FACE_REC_KNN  20  // Size of return knn when searching face in face repository.
 #define FACE_REC_TH_DIST  0.6 // Distance threshold for same person.
 #define FACE_REC_TH_N  2 // Least number of retrieved knns with same label.
 
 // Face verification parameters.
-#define FACE_VER_KNN  10 // Size of return knn when searching face in face repository.
 #define FACE_VER_TH_DIST 0.6  // Distance threshold for same person.
+// Verificate by face recognition ------------------------------------------ begin
+#define FACE_VER_KNN  20 // Size of return knn when searching face in face repository.
 #define  FACE_VER_TH_N  2 // Least number of retrieved knns with same label.
+// Verificate by face recognition ------------------------------------------ end
+// Verificate directly ------------------------------------------ begin
+#define FACE_VER_SAMPLE_NUM  5 // Number of sample faces to compare directly.
+// Verificate directly ------------------------------------------ end
 #define FACE_VER_NUM  3 // Number of faces to be checked in person verification.
 #define FACE_VER_VALID_NUM  2 // Minimun number of accepted faces to verificate a person.
 

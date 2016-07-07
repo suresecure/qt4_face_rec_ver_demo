@@ -1,12 +1,7 @@
 #include "face_processor.h"
-//#include <QImageWriter>
 
 #include <QCoreApplication>
 #include <QDateTime>
-//#include <flann/flann.hpp>
-//#include <flann/io/hdf5.h>
-#include <dlib/opencv.h>
-#include <dlib/image_processing/frontal_face_detector.h>
 #include <exception>
 
 #include "face_recognition.hpp"
@@ -41,32 +36,8 @@ FaceProcessor::FaceProcessor(QObject *parent, bool processAll) : QObject(parent)
     Q_ASSERT(face_align_ != NULL);
 
     // Load face repository.
-    face_repo_ = NULL;
-    try
-    {
-        face_repo_ = new FaceRepo(*recognizer_);
-        // Load face repository.
-        face_repo_->Load(face_repo_path_);
-        // Load all image paths.
-        int N = face_repo_->GetValidFaceNum();
-        fs::path save_image_path_file(face_repo_path_);
-        save_image_path_file /= fs::path("dataset_file_path.txt");
-        ifstream ifile(save_image_path_file.string().c_str());
-        string line;
-        for (int i = 0; i < N; i++) {
-          getline(ifile, line);
-          face_image_path_.push_back(line);
-        }
-        ifile.close();
-    }
-    catch(exception e)
-    {
-        qDebug()<<"Face repository does not exist or other error.";
-        qDebug()<<e.what();
-        QDir dir;
-        dir.mkpath(QString::fromLocal8Bit(face_repo_path_.c_str()));
-        face_image_path_.clear();
-    }
+    face_repo_ = new FaceRepo(*recognizer_);
+    faceRepoInit();
 
     face_repo_is_dirty_ = false;
     save_timer_.start(FACE_REPO_TIME_INTERVAL_TO_SAVE*1000, this);
@@ -96,6 +67,7 @@ FaceProcessor::FaceProcessor(QObject *parent, bool processAll) : QObject(parent)
     face_ver_th_n_ = FACE_VER_TH_N;
     face_ver_num_ = FACE_VER_NUM;
     face_ver_valid_num_ = FACE_VER_VALID_NUM;
+    face_ver_sample_num_ = FACE_VER_SAMPLE_NUM;
     // Person register parameter
     face_reg_num_ = FACE_REG_NUM;
     face_reg_need_ver_ = false;
@@ -116,6 +88,58 @@ FaceProcessor::~FaceProcessor()
     }
     delete face_align_;
     delete recognizer_;
+}
+
+bool FaceProcessor::faceRepoInit()
+{
+    bool suc_load;
+    try
+    {
+        // Load face repository.
+        suc_load = face_repo_->Load(face_repo_path_);
+        int N = face_repo_->GetFaceNum();
+        for (int i = 0; i < N; i++) {
+          face_image_path_.push_back(face_repo_->GetPath(i));
+        }
+//        // Load all image paths.
+//        int N = face_repo_->GetValidFaceNum();
+//        fs::path save_image_path_file(face_repo_path_);
+//        save_image_path_file /= fs::path("dataset_file_path.txt");
+//        ifstream ifile(save_image_path_file.string().c_str());
+//        string line;
+//        for (int i = 0; i < N; i++) {
+//          getline(ifile, line);
+//          face_image_path_.push_back(line);
+//        }
+//        ifile.close();
+    }
+    catch(exception e)
+    {
+        qDebug()<<"Face repository does not exist or other error.";
+        qDebug()<<e.what();
+        suc_load = false;
+        face_image_path_.clear();
+    }
+
+    if (suc_load)
+        return true;
+
+    QDir dir;
+    dir.mkpath(QString::fromLocal8Bit(face_repo_path_.c_str()));
+
+    // Try reconstruct face repository from images.
+    vector<fs::path> image_path;
+    getAllFiles(fs::path(face_image_home_), ".jpg", image_path);
+    if ( image_path.size() > 0)
+    {
+        for ( int i = 0; i < image_path.size(); i++ )
+            face_image_path_.push_back(image_path[i].string());
+        qDebug()<<"Try to construct face repository from images.";
+        face_repo_->InitialIndex(face_image_path_);
+        face_repo_->Save(face_repo_path_);
+        return true;
+    }
+    return false;
 }
 
 // Dispatch FaceRepo's image paths to each person.
@@ -163,7 +187,10 @@ void FaceProcessor::process(cv::Mat frame)
     // Detect and align face.
     Mat face_aligned, H, inv_H;
     Rect rect_face_detected;
-    rect_face_detected = detectAlignCropDlib(*face_align_, frame, face_aligned, H, inv_H);
+    face_aligned = face_align_->detectAlignCrop(frame, rect_face_detected, H, inv_H,
+                                                FACE_ALIGN_SCALE,
+                                                FaceAlign::INNER_EYES_AND_BOTTOM_LIP,
+                                                FACE_ALIGN_SCALE_FACTOR);
 //    if (H.size().area() > 0 )
 //    {
 //        cout<<"------------------"<<endl;
@@ -205,8 +232,11 @@ void FaceProcessor::process(cv::Mat frame)
     {
         map<float, pair<int, string> > combined_result; // Combine recognition result by using FaceRepo.
         map <string, string> example_face; // Example face for each group.
-        faceRecognition( feature, face_rec_knn_, face_rec_th_dist_, combined_result, example_face);
+        faceRecognition( feature, SIMPLE_MIN(face_rec_knn_, face_repo_->GetValidFaceNum()), face_rec_th_dist_, combined_result, example_face);
         cout<<"Face recognition return group num: "<<combined_result.size()<<endl;
+        for (map<float, pair<int, string> >::iterator it = combined_result.begin();
+             it != combined_result.end(); it++)
+            cout<<"Group \""<<(it->second).second<<"\": num "<<(it->second).first<<", ave_dist "<<it->first<<endl;
 
         // Prepare results to show.
         map<float, pair<int, string> >::iterator it = combined_result.begin();
@@ -271,12 +301,13 @@ void FaceProcessor::process(cv::Mat frame)
                 break;
             }
         }
+
         // Check face pose of the current frame.
         if (!checkFacePose(feature, H, inv_H))
             break;
 
         // Add current face to the face verification stack.
-        selectOneFace(face_aligned, feature, H, inv_H);
+        verAndSelectFace(face_aligned, feature, H, inv_H);
 
         // Prepare results to show.
         for (int i = 0; i < RESULT_FACES_NUM-1; i++)
@@ -340,7 +371,7 @@ void FaceProcessor::process(cv::Mat frame)
             break;
 
         // Add current face to the face verification stack.
-        selectOneFace(face_aligned, feature, H, inv_H);
+        verAndSelectFace(face_aligned, feature, H, inv_H);
         QString caption = "Face Register";
         // The person already exist, and man in front of the camera has not passed the verification.
         if ( face_reg_need_ver_ &&
@@ -366,6 +397,8 @@ void FaceProcessor::process(cv::Mat frame)
                 filelist.push_back(filepath.string());
                 face_image_path_.push_back(filepath.string());
             }
+            if (face_repo_->GetFaceNum() == 0)
+                faceRepoInit();
             person_image_path_.push_back(filelist);
             face_repo_->AddFace(filelist, selected_face_feature_);
             face_repo_is_dirty_ = true;
@@ -474,15 +507,17 @@ bool FaceProcessor::checkFacePose(const Mat & feature, const Mat & H, const Mat 
     return true;
 }
 
-void FaceProcessor::selectOneFace(const Mat & face, const Mat & feature, const Mat & H, const Mat & inv_H)
+void FaceProcessor::verAndSelectFace(const Mat & face, const Mat & feature, const Mat & H, const Mat & inv_H)
 {
     // Verificate the face with the given person name.
     bool match = false;
-    map<float, pair<int, string> >  combined_result;
+
+    // Verificate by face recognition
+/*    map<float, pair<int, string> >  combined_result;
     map <string, string>  example_face;
-    cout<<"FaceProcessor::selectOneFace: BEFORE faceRecognition, feature size is "<<feature.rows<<"x"<<feature.cols<<endl;
-    faceRecognition( feature,  face_ver_knn_, face_ver_th_dist_, combined_result, example_face);
-    cout<<"FaceProcessor::selectOneFace:  faceRecognition DONE, size of combine result is "<<combined_result.size()<<endl;
+    //cout<<"FaceProcessor::selectOneFace: BEFORE faceRecognition, feature size is "<<feature.rows<<"x"<<feature.cols<<endl;
+    faceRecognition( feature,  SIMPLE_MIN(face_ver_knn_, face_repo_->GetValidFaceNum()), face_ver_th_dist_, combined_result, example_face);
+    //cout<<"FaceProcessor::selectOneFace:  faceRecognition DONE, size of combine result is "<<combined_result.size()<<endl;
     for (map<float, pair<int, string> >::iterator it = combined_result.begin();
          it != combined_result.end(); it++)
     {
@@ -491,6 +526,19 @@ void FaceProcessor::selectOneFace(const Mat & face, const Mat & feature, const M
             match = true;
             cout<<"VERIFICATE  with average distance "<<it->first<<endl;
         }
+    }
+*/
+
+    // Verificate directly
+    srand(time(0));
+    // Select and compare samples from face repository.
+    vector<string>::iterator iter = find(person_.begin(), person_.end(), face_reg_ver_name_);
+    int pos_person = iter - person_.begin();
+    for (int i = 0; i < SIMPLE_MIN(face_ver_sample_num_, person_image_path_[pos_person].size()); i ++)
+    {
+        int j = rand() % person_image_path_[pos_person].size();
+        Mat f = face_repo_->GetFeatureCV(person_image_path_[pos_person][j]);
+        match = norm(f, feature) < face_ver_th_dist_;
     }
 
     // Add face into the list.

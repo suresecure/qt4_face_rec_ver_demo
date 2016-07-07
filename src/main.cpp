@@ -5,14 +5,12 @@
 
 int main(int argc, char *argv[])
 {
-    QApplication a(argc, argv);
-    MainWindow w;
-    w.show();
-//    MainWidget w;
-//    w.show();
     qRegisterMetaType<cv::Mat>("cv::Mat");
     qRegisterMetaType< QList<cv::Mat> >("QList<cv::Mat>");
     qRegisterMetaType< QList<float> >("QList<float>");
 
+    QApplication a(argc, argv);
+    MainWindow w;
+    w.show();
     return a.exec();
 }
