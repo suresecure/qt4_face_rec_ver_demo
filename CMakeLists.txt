@@ -20,7 +20,9 @@ QT4_ADD_RESOURCES(qt_RESOURCES_RCC ${qt_RESOURCES})
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/Modules/")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 
-include(dlib/cmake/)  # Static compile dlib
+add_library(dlib SHARED IMPORTED)   # Dynamic import
+set_target_properties(dlib PROPERTIES IMPORTED_LOCATION /home/robert/myCoding/suresecure/qt4_face_rec_ver_demo/lib/libdlib.so)
+include(dlib/cmake/)
 
 ## ------------------------------------------
 #set(CPU_ONLY ON)
@@ -46,12 +48,11 @@ include_directories(${FLANN_INCLUDE_DIRS})
 
 include_directories("${CMAKE_SOURCE_DIR}/include")
 link_directories("${CMAKE_SOURCE_DIR}/lib")
-set(FaceRecSrzn_LIBRARIES "face_rec_srzn;caffe")
-#set(FaceRecSrzn_LIBRARIES "caffe")
+set(FaceRecSrzn_LIBRARIES "face_rec_srzn;caffe;dlib")
 
 SET(all_SOURCES   src/main.cpp
-                                src/face_align.h
-                                src/face_align.cpp
+#                                src/face_align.h
+#                                src/face_align.cpp
                                 src/camera.cpp
                                 src/face_processor.cpp
                                 src/face_rep_utils.h
@@ -65,13 +66,13 @@ SET(all_SOURCES   src/main.cpp
 # ------------------------------------------
                                 gui/mainwindow.cpp
                                 gui/mainwidget.cpp
-#                                gui/displaywidget.cpp
                                 gui/imageviewer.cpp )
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 
 # target
 ADD_EXECUTABLE(face_demo ${all_SOURCES} ${qt_HEADERS_MOC} ${qt_FORMS})
-TARGET_LINK_LIBRARIES(face_demo dlib ${FaceRecSrzn_LIBRARIES}  ${OpenCV_LIBRARIES}  ${Boost_LIBRARIES} ${QT_LIBRARIES} ${FLANN_LIBRARY} ${HDF5_LIBRARIES})
+#TARGET_LINK_LIBRARIES(face_demo dlib ${FaceRecSrzn_LIBRARIES}  ${OpenCV_LIBRARIES}  ${Boost_LIBRARIES} ${QT_LIBRARIES} ${FLANN_LIBRARY} ${HDF5_LIBRARIES})
+TARGET_LINK_LIBRARIES(face_demo ${FaceRecSrzn_LIBRARIES}  ${OpenCV_LIBRARIES}  ${Boost_LIBRARIES} ${QT_LIBRARIES} ${FLANN_LIBRARY} ${HDF5_LIBRARIES})
 
 
