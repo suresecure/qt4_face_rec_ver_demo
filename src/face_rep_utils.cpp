@@ -120,7 +120,7 @@ void findValidFace(FaceAlign & face_align,
 
 float dist2sim(float dist)
 {
-    float maxDist = 2.24;  // Empirical value
+    float maxDist = 2;
     if (dist < 0 || dist > maxDist)
         return 0;
     return (maxDist - dist)/maxDist;

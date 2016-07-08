@@ -1,10 +1,10 @@
-#pragma once
+#ifndef CAMERA_H
+#define CAMERA_H
 
 #include <opencv2/opencv.hpp>
 #include <opencv2/objdetect/objdetect.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
-//#include <opencv2/imgcodecs.hpp>
 
 #include <QObject>
 #include <QScopedPointer>
@@ -18,18 +18,18 @@
 class Camera : public QObject
 {
     Q_OBJECT
-    QScopedPointer<cv::VideoCapture> video_capture_;
-    QBasicTimer timer_;
-    bool run_;
-    bool using_video_camera_;
-    int camera_index_;
-    cv::String video_file_name_;
+    QScopedPointer<cv::VideoCapture> _video_capture;
+    QBasicTimer _timer;
+    bool _run;
+    bool _using_video_camera;
+    int _camera_index;
+    cv::String _video_file_name;
 
 public:
     Camera(int camera_index=0, QObject* parent=0) : QObject(parent)
     {
-        camera_index_ = camera_index;
-        using_video_camera_ = true;
+        _camera_index = camera_index;
+        _using_video_camera = true;
     }
 
     ~Camera();
@@ -50,3 +50,5 @@ signals:
 private:
     void timerEvent(QTimerEvent * ev);
 };
+
+#endif

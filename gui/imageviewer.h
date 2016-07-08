@@ -15,14 +15,12 @@ public:
     void paintEvent(QPaintEvent *);
 
 public slots:
-//    void set_image(const QImage & img);
     void slotSetImage(const cv::Mat & frame, int handle = -1);
 
 private:
-//    QTime lastUpdateTime;
-    cv::Mat frame_;
-    QImage image_;
-    int handle_;
+    cv::Mat _frame;
+    QImage _image;
+    int _handle;
 };
 
 #endif // IMAGEVIEWER_H

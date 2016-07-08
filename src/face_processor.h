@@ -89,68 +89,68 @@ private:
 
 private:
     // Timer to save face repository.
-    QBasicTimer save_timer_;
-    bool face_repo_is_dirty_;
+    QBasicTimer _save_timer;
+    bool _face_repo_is_dirty;
 
     // To process camera captured images.
-    QBasicTimer frame_timer_;
-    cv::Mat frame_;     // Current camera frame.
-    bool process_all_;  // Process every frame captured by the camera?
+    QBasicTimer _frame_timer;
+    cv::Mat _frame;     // Current camera frame.
+    bool _process_all;  // Process every frame captured by the camera?
 
     // Face detection, recognition, repository models' path.
-    string caffe_model_folder_;
-    string bayesian_model_path_;
-    string dlib_face_model_path_;
-    string face_repo_path_;
-    string face_image_home_; // Root directory to store face images.
+    string _caffe_model_folder;
+    string _bayesian_model_path;
+    string _dlib_face_model_path;
+    string _face_repo_path;
+    string _face_image_home; // Root directory to store face images.
 
     // Face recognition, alignment, repository classes.
-    LightFaceRecognizer * recognizer_;
-    FaceAlign * face_align_;
-    FaceRepo * face_repo_;
+    LightFaceRecognizer * _recognizer;
+    FaceAlign * _face_align;
+    FaceRepo * _face_repo;
 
     // Face repository.
-    vector<string> face_image_path_;  // All image paths, used by "FaceRepo".
-    vector <vector<string> > person_image_path_;  //Face image path for each person.
-    vector <string> person_; // Person names.
+    vector<string> _face_image_path;  // All image paths, used by "FaceRepo".
+    vector <vector<string> > _person_image_path;  //Face image path for each person.
+    vector <string> _person; // Person names.
 
     // Working statement: recognition, verification or register.
-    PROCESS_STATE work_state_;
+    PROCESS_STATE _work_state;
 
     // Empty (white) result images.
-    cv::Mat empty_result_;
+    cv::Mat _empty_result;
 
     // Face recognition parameters
-    int  face_rec_knn_; // Size of return knn;
-    float face_rec_th_dist_; // Distance threshold for same person.
-    int face_rec_th_n_; // Least number of retrieved knn with same label.
+    int  _face_rec_knn; // Size of return knn;
+    float _face_rec_th_dist; // Distance threshold for same person.
+    int _face_rec_th_num; // Least number of retrieved knn with same label.
 
     // Face verification parameter
-    int  face_ver_knn_; // Size of return knn;
-    float face_ver_th_dist_; // Distance threshold for same person.
-    int face_ver_th_n_; // Least number of retrieved knn with same label.
-    int face_ver_sample_num_; // Number of sample faces to compare directly.
-    int face_ver_num_; // Number of faces to be checked  in verification.
-    int face_ver_valid_num_; // Minimun number of  accepted faces to verificate a person.
-    cv::Mat face_ver_target_samlpe_; // A sample face of verification target person.
+    int  _face_ver_knn; // Size of return knn;
+    float _face_ver_th_dist; // Distance threshold for same person.
+    int _face_ver_th_num; // Least number of retrieved knn with same label.
+    int _face_ver_sample_num; // Number of sample faces to compare directly.
+    int _face_ver_num; // Number of faces to be checked  in verification.
+    int _face_ver_valid_num; // Minimun number of  accepted faces to verificate a person.
+    cv::Mat _face_ver_target_samlpe; // A sample face of verification target person.
 
     // Face register parameter
-    int face_reg_num_; // Number of faces needed in register.
-    string face_reg_ver_name_; // Person name in face register of verification.
-    bool face_reg_need_ver_; // Need to verificate current person before register because the name already exist.
+    int _face_reg_num; // Number of faces needed in register.
+    string _face_reg_ver_name; // Person name in face register of verification.
+    bool _face_reg_need_ver; // Need to verificate current person before register because the name already exist.
 
     // Select faces in person verification or register.
     // We should use faces with different poses for robust reason.
-    int selected_faces_num_; // Number of selected faces.
-    vector<cv::Mat> selected_face_H_;  // Affine matrix in alignment of selected faces.
-    vector<cv::Mat> selected_face_inv_H_;  // Inverse affine matrix in alignment of selected faces.
-    float  pose_min_dist_; // Minimum pose distance.
-    vector<cv::Mat> selected_face_aligned_;  // Selected faces (aligned).
-    vector<cv::Mat> selected_face_feature_;  // Feature of selected faces.
-    vector<bool> selected_face_ver_valid_; // Is the selected face pass the verification.
-    int selected_face_ver_valid_num_; // Number of selected face that passed the verification.
-    float feature_min_dist_;  // Minimun feature distance to make different pose.
-    float feature_max_dist_; // Maximum feature distance to assure same person in front of the camera.
+    int _selected_faces_num; // Number of selected faces.
+    vector<cv::Mat> _selected_face_H;  // Affine matrix in alignment of selected faces.
+    vector<cv::Mat> _selected_face_inv_H;  // Inverse affine matrix in alignment of selected faces.
+    float  _pose_min_dist; // Minimum pose distance.
+    vector<cv::Mat> _selected_face_aligned;  // Selected faces (aligned).
+    vector<cv::Mat> _selected_face_feature;  // Feature of selected faces.
+    vector<bool> _selected_face_ver_valid; // Is the selected face pass the verification.
+    int _selected_face_ver_valid_num; // Number of selected face that passed the verification.
+    float _feature_min_dist;  // Minimun feature distance to make different pose.
+    float _feature_max_dist; // Maximum feature distance to assure same person in front of the camera.
 };
 
 #endif // FACE_PROCESSOR_H

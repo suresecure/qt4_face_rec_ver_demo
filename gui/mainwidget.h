@@ -40,29 +40,29 @@ private slots:
     void slotOnClickVerificationButton();
 
 private:
-    FaceProcessor* face_processor_;
-    Camera* camera_;
-    QThread face_process_thread_;
-    QThread camera_thread_;
+    FaceProcessor* _face_processor;
+    Camera* _camera;
+    QThread _face_process_thread;
+    QThread _camera_thread;
 
-    QLabel* caption_;
+    QLabel* _caption;
 
     // Camera view
-    ImageViewer* image_viewer_;
+    ImageViewer* _image_viewer;
 
     // Show result faces
-    ImageViewer* result_viewer_[RESULT_FACES_NUM];
-    QLabel* result_rank_[RESULT_FACES_NUM];
-    QLabel* result_name_[RESULT_FACES_NUM];
-    QLabel* result_sim_[RESULT_FACES_NUM];
-    cv::Mat result_faces_[RESULT_FACES_NUM];
+    ImageViewer* _result_viewer[RESULT_FACES_NUM];
+    QLabel* _result_rank[RESULT_FACES_NUM];
+    QLabel* _result_name[RESULT_FACES_NUM];
+    QLabel* _result_sim[RESULT_FACES_NUM];
+    cv::Mat _result_faces[RESULT_FACES_NUM];
 
     // Control buttons
-    QPushButton *register_PushButton_;
-    QPushButton *verification_PushButton_;
-    bool is_reg_; // Doing register.
-    bool is_ver_; // Doing verification.
-    QLineEdit* name_LineEdit_;
+    QPushButton *_register_PushButton;
+    QPushButton *_verification_PushButton;
+    bool _is_reg; // Doing register.
+    bool _is_ver; // Doing verification.
+    QLineEdit* _name_LineEdit;
 };
 
 #endif // MAINWIDGET_H

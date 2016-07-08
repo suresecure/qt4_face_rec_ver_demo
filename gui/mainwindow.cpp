@@ -3,8 +3,8 @@
 
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
 {
-    display_ = new MainWidget(this);
-    setCentralWidget(display_);
+    _display = new MainWidget(this);
+    setCentralWidget(_display);
 }
 
 MainWindow::~MainWindow()

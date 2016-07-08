@@ -6,33 +6,33 @@ Camera::~Camera()
 
 void Camera::slotRun()
 {
-    if (!video_capture_ || !using_video_camera_)
+    if (!_video_capture || !_using_video_camera)
     {
-        if (using_video_camera_)
-            video_capture_.reset(new cv::VideoCapture(camera_index_));
+        if (_using_video_camera)
+            _video_capture.reset(new cv::VideoCapture(_camera_index));
         else
-            video_capture_.reset(new cv::VideoCapture(video_file_name_));
+            _video_capture.reset(new cv::VideoCapture(_video_file_name));
     }
-    if (video_capture_->isOpened())
+    if (_video_capture->isOpened())
     {
-        timer_.start(0, this);
+        _timer.start(0, this);
         emit sigStarted();
     }
 }
 
 void Camera::slotStopped()
 {
-    timer_.stop();
+    _timer.stop();
 }
 
 void Camera::timerEvent(QTimerEvent *ev)
 {
-    if (ev->timerId() != timer_.timerId())
+    if (ev->timerId() != _timer.timerId())
         return;
     cv::Mat frame;
-    if (!video_capture_->read(frame)) // Blocks until a new frame is ready
+    if (!_video_capture->read(frame)) // Blocks until a new frame is ready
     {
-        timer_.stop();
+        _timer.stop();
         return;
     }
     emit sigMatReady(frame);
@@ -40,15 +40,15 @@ void Camera::timerEvent(QTimerEvent *ev)
 
 void Camera::slotUsingVideoCamera(bool value)
 {
-    using_video_camera_ = value;
+    _using_video_camera = value;
 }
 
 void Camera::slotCameraIndex(int index)
 {
-    camera_index_ = index;
+    _camera_index = index;
 }
 
 void Camera::slotVideoFileName(QString fileName)
 {
-    video_file_name_ = fileName.toStdString().c_str();
+    _video_file_name = fileName.toStdString().c_str();
 }

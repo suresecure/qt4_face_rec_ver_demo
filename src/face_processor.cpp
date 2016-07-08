@@ -15,128 +15,116 @@ using namespace cv;
 using namespace std;
 using namespace face_rec_srzn;
 
-FaceProcessor::FaceProcessor(QObject *parent, bool processAll) : QObject(parent), process_all_(processAll)
+FaceProcessor::FaceProcessor(QObject *parent, bool processAll) : QObject(parent), _process_all(processAll)
 {
     string appPath = QCoreApplication::applicationDirPath().toStdString();
-    caffe_model_folder_ = fs::path(appPath + "/" + caffe_model_folder).string();
-    bayesian_model_path_ = fs::path(appPath + "/" + bayesian_model_path).string();
-    dlib_face_model_path_ = fs::path(appPath + "/" + dlib_face_model_path).string();
-    face_repo_path_ = fs::path(appPath + "/" + face_repo_path).string();
-    face_image_home_ = fs::path(appPath + "/" + face_image_home).string();
+    _caffe_model_folder = fs::path(appPath + "/" + caffe_model_folder).string();
+    _bayesian_model_path = fs::path(appPath + "/" + bayesian_model_path).string();
+    _dlib_face_model_path = fs::path(appPath + "/" + dlib_face_model_path).string();
+    _face_repo_path = fs::path(appPath + "/" + face_repo_path).string();
+    _face_image_home = fs::path(appPath + "/" + face_image_home).string();
 
     // Init
-    recognizer_ = new LightFaceRecognizer(
-        caffe_model_folder_,
-        bayesian_model_path_,
+    _recognizer = new LightFaceRecognizer(
+        _caffe_model_folder,
+        _bayesian_model_path,
         "prob", false);
-    face_align_ = new FaceAlign(dlib_face_model_path_);
-    work_state_ = STATE_DEFAULT;
+    _face_align = new FaceAlign(_dlib_face_model_path);
+    _work_state = STATE_DEFAULT;
 
-    Q_ASSERT(recognizer_ != NULL);
-    Q_ASSERT(face_align_ != NULL);
+    Q_ASSERT(_recognizer != NULL);
+    Q_ASSERT(_face_align != NULL);
 
     // Load face repository.
-    face_repo_ = new FaceRepo(*recognizer_);
+    _face_repo = new FaceRepo(*_recognizer);
     faceRepoInit();
 
-    face_repo_is_dirty_ = false;
-    save_timer_.start(FACE_REPO_TIME_INTERVAL_TO_SAVE*1000, this);
+    _face_repo_is_dirty = false;
+    _save_timer.start(FACE_REPO_TIME_INTERVAL_TO_SAVE*1000, this);
 
     // Dispatch faces by person.
-    if ( 0 < face_image_path_.size() )
+    if ( 0 < _face_image_path.size() )
         dispatchImage2Person();
     /*// Print result to test dispatchImage2Person()
     cout<<"Person count: "<<person_.size()<<endl;
     for (int i = 0; i < person_.size(); i++)
     {
         cout<<person_[i]<<": "<<person_image_path_[i].size()<<endl;
-        for (int j = 0; j < person_image_path_[i].size(); j++)
+        for (int j = 0; j < _person_image_path[i].size(); j++)
             cout<<j<<": "<<person_image_path_[i][j]<<endl;
     }*/
 
     // Pre allocate an empty (white) result image.
-    empty_result_ = Mat(RESULT_FACE_WIDTH, RESULT_FACE_HEIGHT, CV_8UC3, Scalar(255, 255, 255));
+    _empty_result = Mat(RESULT_FACE_WIDTH, RESULT_FACE_HEIGHT, CV_8UC3, Scalar(255, 255, 255));
 
     // Face recognition parameter
-    face_rec_knn_ = FACE_REC_KNN;
-    face_rec_th_dist_ = FACE_REC_TH_DIST;
-    face_rec_th_n_ = FACE_REC_TH_N;
+    _face_rec_knn = FACE_REC_KNN;
+    _face_rec_th_dist = FACE_REC_TH_DIST;
+    _face_rec_th_num = FACE_REC_TH_N;
     // Face verification parameter
-    face_ver_knn_ = FACE_VER_KNN;
-    face_ver_th_dist_ = FACE_VER_TH_DIST;
-    face_ver_th_n_ = FACE_VER_TH_N;
-    face_ver_num_ = FACE_VER_NUM;
-    face_ver_valid_num_ = FACE_VER_VALID_NUM;
-    face_ver_sample_num_ = FACE_VER_SAMPLE_NUM;
+    _face_ver_knn = FACE_VER_KNN;
+    _face_ver_th_dist = FACE_VER_TH_DIST;
+    _face_ver_th_num = FACE_VER_TH_N;
+    _face_ver_num = FACE_VER_NUM;
+    _face_ver_valid_num = FACE_VER_VALID_NUM;
+    _face_ver_sample_num = FACE_VER_SAMPLE_NUM;
     // Person register parameter
-    face_reg_num_ = FACE_REG_NUM;
-    face_reg_need_ver_ = false;
+    _face_reg_num = FACE_REG_NUM;
+    _face_reg_need_ver = false;
     // Face pose selection parameter
-    selected_faces_num_ = 0;
-    selected_face_ver_valid_num_ = 0;
-    feature_min_dist_ = FEATURE_MIN_DIST;
-    feature_max_dist_ = FEATURE_MAX_DIST;
+    _selected_faces_num = 0;
+    _selected_face_ver_valid_num = 0;
+    _feature_min_dist = FEATURE_MIN_DIST;
+    _feature_max_dist = FEATURE_MAX_DIST;
 }
 
 FaceProcessor::~FaceProcessor()
 {
-    if (NULL != face_repo_)
+    if (NULL != _face_repo)
     {
-        if (face_repo_is_dirty_)
-            face_repo_->Save(face_repo_path_);
-        delete face_repo_;
+        if (_face_repo_is_dirty)
+            _face_repo->Save(_face_repo_path);
+        delete _face_repo;
     }
-    delete face_align_;
-    delete recognizer_;
+    delete _face_align;
+    delete _recognizer;
 }
 
 bool FaceProcessor::faceRepoInit()
 {
     bool suc_load;
     try
-    {
-        // Load face repository.
-        suc_load = face_repo_->Load(face_repo_path_);
-        int N = face_repo_->GetFaceNum();
+    {   // Load face repository.
+        suc_load = _face_repo->Load(_face_repo_path);
+        int N = _face_repo->GetFaceNum();
         for (int i = 0; i < N; i++) {
-          face_image_path_.push_back(face_repo_->GetPath(i));
+          _face_image_path.push_back(_face_repo->GetPath(i));
         }
-//        // Load all image paths.
-//        int N = face_repo_->GetValidFaceNum();
-//        fs::path save_image_path_file(face_repo_path_);
-//        save_image_path_file /= fs::path("dataset_file_path.txt");
-//        ifstream ifile(save_image_path_file.string().c_str());
-//        string line;
-//        for (int i = 0; i < N; i++) {
-//          getline(ifile, line);
-//          face_image_path_.push_back(line);
-//        }
-//        ifile.close();
     }
     catch(exception e)
     {
         qDebug()<<"Face repository does not exist or other error.";
         qDebug()<<e.what();
         suc_load = false;
-        face_image_path_.clear();
+        _face_image_path.clear();
     }
 
     if (suc_load)
         return true;
 
     QDir dir;
-    dir.mkpath(QString::fromLocal8Bit(face_repo_path_.c_str()));
+    dir.mkpath(QString::fromLocal8Bit(_face_repo_path.c_str()));
 
     // Try reconstruct face repository from images.
     vector<fs::path> image_path;
-    getAllFiles(fs::path(face_image_home_), ".jpg", image_path);
+    getAllFiles(fs::path(_face_image_home), ".jpg", image_path);
     if ( image_path.size() > 0)
     {
         for ( int i = 0; i < image_path.size(); i++ )
-            face_image_path_.push_back(image_path[i].string());
+            _face_image_path.push_back(image_path[i].string());
         qDebug()<<"Try to construct face repository from images.";
-        face_repo_->InitialIndex(face_image_path_);
-        face_repo_->Save(face_repo_path_);
+        _face_repo->InitialIndex(_face_image_path);
+        _face_repo->Save(_face_repo_path);
         return true;
     }
     return false;
@@ -145,28 +133,28 @@ bool FaceProcessor::faceRepoInit()
 // Dispatch FaceRepo's image paths to each person.
 void FaceProcessor::dispatchImage2Person()
 {
-    for (int i =  0 ; i < face_image_path_.size(); i++)
+    for (int i =  0 ; i < _face_image_path.size(); i++)
     {
-        string person_name = getPersonName(face_image_path_[i]);
-        vector<string>::iterator iter = find(person_.begin(), person_.end(), person_name);
-        if ( iter == person_.end() )
+        string person_name = getPersonName(_face_image_path[i]);
+        vector<string>::iterator iter = find(_person.begin(), _person.end(), person_name);
+        if ( iter == _person.end() )
         {
-            person_.push_back(person_name);
+            _person.push_back(person_name);
             vector<string> person_images;
-            person_images.push_back(face_image_path_[i]);
-            person_image_path_.push_back(person_images);
+            person_images.push_back(_face_image_path[i]);
+            _person_image_path.push_back(person_images);
         }
         else
         {
-            int pos = iter - person_.begin();
-            person_image_path_[pos].push_back(face_image_path_[i]);
+            int pos = iter - _person.begin();
+            _person_image_path[pos].push_back(_face_image_path[i]);
         }
     }
 }
 
 void FaceProcessor::slotProcessFrame(const cv::Mat &frame)
 {
-    if (process_all_)
+    if (_process_all)
         process(frame);
     else
         queue(frame);
@@ -174,7 +162,7 @@ void FaceProcessor::slotProcessFrame(const cv::Mat &frame)
 
 void FaceProcessor::setProcessAll(bool all)
 {
-    process_all_ = all;
+    _process_all = all;
 }
 
 void FaceProcessor::process(cv::Mat frame)
@@ -187,7 +175,7 @@ void FaceProcessor::process(cv::Mat frame)
     // Detect and align face.
     Mat face_aligned, H, inv_H;
     Rect rect_face_detected;
-    face_aligned = face_align_->detectAlignCrop(frame, rect_face_detected, H, inv_H,
+    face_aligned = _face_align->detectAlignCrop(frame, rect_face_detected, H, inv_H,
                                                 FACE_ALIGN_SCALE,
                                                 FaceAlign::INNER_EYES_AND_BOTTOM_LIP,
                                                 FACE_ALIGN_SCALE_FACTOR);
@@ -203,13 +191,6 @@ void FaceProcessor::process(cv::Mat frame)
     if (0 == rect_face_detected.area())
     {
         cv::cvtColor(frame, frame, cv::COLOR_BGR2RGB);
-//        for (int i = 0; i < RESULT_FACES_NUM; i++)
-//        {
-//            result_faces.append(empty_result_); // Use pre-allocated empty image.
-//            result_names.append("");
-//            result_sim.append(0);
-//        }
-//        emit sigResultFacesReady(result_faces, result_names, result_sim);
         emit sigDisplayImageReady(frame);
         emit sigCaptionUpdate("Cannot detect face");
         return;
@@ -222,17 +203,17 @@ void FaceProcessor::process(cv::Mat frame)
     emit sigDisplayImageReady(frame);
 
     Mat feature;
-    recognizer_->ExtractFaceFeature(face_aligned, feature);
-//    feature = face_repo_->GetFeatureCV(1); // For test
+    _recognizer->ExtractFaceFeature(face_aligned, feature);
+//    feature = _face_repo->GetFeatureCV(1); // For test
 
     // Main process
-    switch (work_state_)
+    switch (_work_state)
     {
     case STATE_DEFAULT: // Face recognition
     {
         map<float, pair<int, string> > combined_result; // Combine recognition result by using FaceRepo.
         map <string, string> example_face; // Example face for each group.
-        faceRecognition( feature, SIMPLE_MIN(face_rec_knn_, face_repo_->GetValidFaceNum()), face_rec_th_dist_, combined_result, example_face);
+        faceRecognition( feature, SIMPLE_MIN(_face_rec_knn, _face_repo->GetValidFaceNum()), _face_rec_th_dist, combined_result, example_face);
         cout<<"Face recognition return group num: "<<combined_result.size()<<endl;
         for (map<float, pair<int, string> >::iterator it = combined_result.begin();
              it != combined_result.end(); it++)
@@ -242,7 +223,7 @@ void FaceProcessor::process(cv::Mat frame)
         map<float, pair<int, string> >::iterator it = combined_result.begin();
         for (int i = 0; i < RESULT_FACES_NUM; i++)
         {
-            if ( i < combined_result.size() && (it->second).first > face_rec_th_n_)
+            if ( i < combined_result.size() && (it->second).first > _face_rec_th_num)
             {
                 string name = (it->second).second;
                 Mat face_in_repo = imread(example_face[name]);
@@ -257,7 +238,7 @@ void FaceProcessor::process(cv::Mat frame)
             }
             else
             {
-                result_faces.append(empty_result_); // Use pre-allocated empty image.
+                result_faces.append(_empty_result); // Use pre-allocated empty image.
 //                // For test
 //                if( i < 3)
 //                {
@@ -279,23 +260,23 @@ void FaceProcessor::process(cv::Mat frame)
     case STATE_VERIFICATION: // Person verification
     {
         // Verification done.
-        if ( selected_faces_num_ >= face_ver_num_ )
+        if ( _selected_faces_num >= _face_ver_num )
             break;
         // The first iteration of face verification.
-        if ( 0 == selected_faces_num_ )
+        if ( 0 == _selected_faces_num )
         {
-            vector<string>::iterator iter = find(person_.begin(), person_.end(), face_reg_ver_name_);
-            if ( iter != person_.end() ) // Person found in the face repository.
+            vector<string>::iterator iter = find(_person.begin(), _person.end(), _face_reg_ver_name);
+            if ( iter != _person.end() ) // Person found in the face repository.
             {
-                string sample_path = person_image_path_[iter-person_.begin()][0];
-                face_ver_target_samlpe_ = imread(sample_path);
-                resize(face_ver_target_samlpe_, face_ver_target_samlpe_, Size(RESULT_FACE_WIDTH, RESULT_FACE_HEIGHT));
-                cv::cvtColor(face_ver_target_samlpe_, face_ver_target_samlpe_, cv::COLOR_BGR2RGB);
+                string sample_path = _person_image_path[iter-_person.begin()][0];
+                _face_ver_target_samlpe = imread(sample_path);
+                resize(_face_ver_target_samlpe, _face_ver_target_samlpe, Size(RESULT_FACE_WIDTH, RESULT_FACE_HEIGHT));
+                cv::cvtColor(_face_ver_target_samlpe, _face_ver_target_samlpe, cv::COLOR_BGR2RGB);
             }
             else
             {
-                if ( !face_ver_target_samlpe_.empty() )
-                    face_ver_target_samlpe_.release();
+                if ( !_face_ver_target_samlpe.empty() )
+                    _face_ver_target_samlpe.release();
                 emit sigCaptionUpdate("The specified name does not exist.");
                 emit sigVerificationDone();
                 break;
@@ -312,32 +293,32 @@ void FaceProcessor::process(cv::Mat frame)
         // Prepare results to show.
         for (int i = 0; i < RESULT_FACES_NUM-1; i++)
         {
-            if ( i < selected_faces_num_ )
+            if ( i < _selected_faces_num )
             {
                 Mat face;
-                resize(selected_face_aligned_[i], face, Size(RESULT_FACE_WIDTH, RESULT_FACE_HEIGHT));
+                resize(_selected_face_aligned[i], face, Size(RESULT_FACE_WIDTH, RESULT_FACE_HEIGHT));
                 cv::cvtColor(face, face, cv::COLOR_BGR2RGB);
                 result_faces.append(face);
-                QString result = selected_face_ver_valid_[i] ? "Matched" : "Unmatched";
+                QString result = _selected_face_ver_valid[i] ? "Matched" : "Unmatched";
                 result_names.append(result);
                 result_sim.append(0);
             }
             else
             {
-                result_faces.append(empty_result_); // Use pre-allocated empty image.
+                result_faces.append(_empty_result); // Use pre-allocated empty image.
                 result_names.append("");
                 result_sim.append(0);
             }
         }
         // Use the last result to show a sample of the target person.
-        result_faces.append(face_ver_target_samlpe_);
+        result_faces.append(_face_ver_target_samlpe);
         result_names.append("Ver target");
         result_sim.append(0);
         QString caption = "Face Verification";
         // Face verification stack full. Make decision.
-        if ( selected_faces_num_ == face_ver_num_)
+        if ( _selected_faces_num == _face_ver_num)
         {
-            if ( selected_face_ver_valid_num_ >= face_ver_valid_num_ )
+            if ( _selected_face_ver_valid_num >= _face_ver_valid_num )
                 caption = "Face Verfication: ACCEPT!";
             else
                 caption = "Face Verfication: DENY!";
@@ -350,20 +331,20 @@ void FaceProcessor::process(cv::Mat frame)
     case STATE_REGISTER:  // Person register.
     {
         // Register done
-        if ( selected_faces_num_ >= face_reg_num_ && selected_faces_num_ >= face_ver_num_ || // Register successly done.
-             face_reg_need_ver_ && selected_faces_num_ >= face_ver_num_ && selected_face_ver_valid_num_ < face_ver_valid_num_ ) // Register failed.
+        if ( _selected_faces_num >= _face_reg_num && _selected_faces_num >= _face_ver_num || // Register successly done.
+             _face_reg_need_ver && _selected_faces_num >= _face_ver_num && _selected_face_ver_valid_num < _face_ver_valid_num ) // Register failed.
             break;
         // The first iteration of face register.
-        if ( 0 == selected_faces_num_ )
+        if ( 0 == _selected_faces_num )
         {
-            vector<string>::iterator iter = find(person_.begin(), person_.end(), face_reg_ver_name_);
-            if ( iter != person_.end() ) // Person already in the face repository.
+            vector<string>::iterator iter = find(_person.begin(), _person.end(), _face_reg_ver_name);
+            if ( iter != _person.end() ) // Person already in the face repository.
             {
-                face_reg_need_ver_ = true;
-                string sample_path = person_image_path_[iter-person_.begin()][0];
-                face_ver_target_samlpe_ = imread(sample_path);
-                resize(face_ver_target_samlpe_, face_ver_target_samlpe_, Size(RESULT_FACE_WIDTH, RESULT_FACE_HEIGHT));
-                cv::cvtColor(face_ver_target_samlpe_, face_ver_target_samlpe_, cv::COLOR_BGR2RGB);
+                _face_reg_need_ver = true;
+                string sample_path = _person_image_path[iter-_person.begin()][0];
+                _face_ver_target_samlpe = imread(sample_path);
+                resize(_face_ver_target_samlpe, _face_ver_target_samlpe, Size(RESULT_FACE_WIDTH, RESULT_FACE_HEIGHT));
+                cv::cvtColor(_face_ver_target_samlpe, _face_ver_target_samlpe, cv::COLOR_BGR2RGB);
             }
         }
         // Check face pose of the current frame.
@@ -374,44 +355,44 @@ void FaceProcessor::process(cv::Mat frame)
         verAndSelectFace(face_aligned, feature, H, inv_H);
         QString caption = "Face Register";
         // The person already exist, and man in front of the camera has not passed the verification.
-        if ( face_reg_need_ver_ &&
-             selected_faces_num_ >= face_ver_num_ &&
-             selected_face_ver_valid_num_ < face_ver_valid_num_ )
+        if ( _face_reg_need_ver &&
+             _selected_faces_num >= _face_ver_num &&
+             _selected_face_ver_valid_num < _face_ver_valid_num )
         {
                 caption = "Face Register: DENY due to verfication failure!";
                 emit sigVerificationDone();
         }
-        else if ( selected_faces_num_ == face_reg_num_ )
+        else if ( _selected_faces_num == _face_reg_num )
         {// Do register.
-            person_.push_back(face_reg_ver_name_);
+            _person.push_back(_face_reg_ver_name);
             vector<string> filelist;
-            fs::path save_dir(face_image_home_);
-            save_dir /= fs::path(face_reg_ver_name_);
+            fs::path save_dir(_face_image_home);
+            save_dir /= fs::path(_face_reg_ver_name);
             fs::create_directories(save_dir);
-            for (int i = 0; i< selected_faces_num_; i++)
+            for (int i = 0; i< _selected_faces_num; i++)
             {
                 fs::path filepath = save_dir;
                 filepath /= fs::path((QDateTime::currentDateTime().toString("yyyyMMdd_hhmmss_")
                                       + QString::number(i)).toStdString() + ".jpg");
-                imwrite(filepath.string(), selected_face_aligned_[i]);
+                imwrite(filepath.string(), _selected_face_aligned[i]);
                 filelist.push_back(filepath.string());
-                face_image_path_.push_back(filepath.string());
+                _face_image_path.push_back(filepath.string());
             }
-            if (face_repo_->GetFaceNum() == 0)
+            if (_face_repo->GetFaceNum() == 0)
                 faceRepoInit();
-            person_image_path_.push_back(filelist);
-            face_repo_->AddFace(filelist, selected_face_feature_);
-            face_repo_is_dirty_ = true;
+            _person_image_path.push_back(filelist);
+            _face_repo->AddFace(filelist, _selected_face_feature);
+            _face_repo_is_dirty = true;
             caption = "Face Register: SUCCESS!";
             emit sigRegisterDone();
         }
         // Prepare results to show.
         for (int i = 0; i < RESULT_FACES_NUM; i++)
         {
-            if ( i < selected_faces_num_ )
+            if ( i < _selected_faces_num )
             {
                 Mat face;
-                resize(selected_face_aligned_[i], face, Size(RESULT_FACE_WIDTH, RESULT_FACE_HEIGHT));
+                resize(_selected_face_aligned[i], face, Size(RESULT_FACE_WIDTH, RESULT_FACE_HEIGHT));
                 cv::cvtColor(face, face, cv::COLOR_BGR2RGB);
                 result_faces.append(face);
                 result_names.append("");
@@ -419,14 +400,14 @@ void FaceProcessor::process(cv::Mat frame)
             }
             else
             {
-                result_faces.append(empty_result_); // Use pre-allocated empty image.
+                result_faces.append(_empty_result); // Use pre-allocated empty image.
                 result_names.append("");
                 result_sim.append(0);
             }
         }
-        if (face_reg_need_ver_)
+        if (_face_reg_need_ver)
         {
-            result_faces.last() = face_ver_target_samlpe_;
+            result_faces.last() = _face_ver_target_samlpe;
             result_names.last() = "Existed target";
         }
         emit sigResultFacesReady(result_faces, result_names, result_sim);
@@ -440,7 +421,7 @@ void FaceProcessor::faceRecognition( const Mat & query,  const int knn, const fl
                                      map<float, pair<int, string> > & combined_result,
                                      map <string, string> & example_face)
 {
-    if ( 0 == face_repo_->GetValidFaceNum())
+    if ( 0 == _face_repo->GetValidFaceNum())
         return;
 
     vector<string> return_list;
@@ -448,7 +429,7 @@ void FaceProcessor::faceRecognition( const Mat & query,  const int knn, const fl
     vector<float>  dists;
 
 //    cout<<"FaceProcessor::faceRecognition VALID FACE NUM IN REPOSITORY: "<<face_repo_->GetValidFaceNum()<<endl;
-    face_repo_->Query(query, knn, return_list, return_list_pos, dists);
+    _face_repo->Query(query, knn, return_list, return_list_pos, dists);
 //    cout<<"FaceProcessor::faceRecognition return_list.size "<<return_list.size()<<endl;
 
     // Group return faces by person.
@@ -494,14 +475,18 @@ bool FaceProcessor::checkFacePose(const Mat & feature, const Mat & H, const Mat 
     if (false)
         return false;
 
-    if ( 0 == selected_faces_num_ )
+    if ( 0 == _selected_faces_num )
         return true;
-    for ( int i = 0; i < selected_faces_num_; i++ )
+    for ( int i = 0; i < _selected_faces_num; i++ )
     {
-        double dist = norm(feature, selected_face_feature_[i]);
-        if ( dist > feature_max_dist_ ) // Maybe another person.
+        Mat f = _selected_face_feature[i];
+        if (f.size() != feature.size())
+            f = f.t();
+        double dist = norm(feature, f);
+
+        if ( dist > _feature_max_dist ) // Maybe another person.
             return false;
-        if ( dist < feature_min_dist_) // Ignore similar face.
+        if ( dist < _feature_min_dist) // Ignore similar face.
             return false;
     }
     return true;
@@ -532,60 +517,62 @@ void FaceProcessor::verAndSelectFace(const Mat & face, const Mat & feature, cons
     // Verificate directly
     srand(time(0));
     // Select and compare samples from face repository.
-    vector<string>::iterator iter = find(person_.begin(), person_.end(), face_reg_ver_name_);
-    int pos_person = iter - person_.begin();
-    for (int i = 0; !match && i < SIMPLE_MIN(face_ver_sample_num_, person_image_path_[pos_person].size()); i ++)
+    vector<string>::iterator iter = find(_person.begin(), _person.end(), _face_reg_ver_name);
+    int pos_person = iter - _person.begin();
+    for (int i = 0; !match && i < SIMPLE_MIN(_face_ver_sample_num, _person_image_path[pos_person].size()); i ++)
     {
-        int j = rand() % person_image_path_[pos_person].size();
-        Mat f = face_repo_->GetFeatureCV(person_image_path_[pos_person][j]);
-        match = match || norm(f, feature) < face_ver_th_dist_;
-        cout<<"Verification, dist to "<<person_image_path_[pos_person][j]<<": "<<norm(f, feature)<<endl;
+        int j = rand() % _person_image_path[pos_person].size();
+        Mat f = _face_repo->GetFeatureCV(_person_image_path[pos_person][j]);
+        if (f.size() != feature.size())
+            f = f.t();
+        match = match || norm(f, feature) < _face_ver_th_dist;
+        cout<<"Verification, dist to "<<_person_image_path[pos_person][j]<<": "<<norm(f, feature)<<endl;
     }
 
     // Add face into the list.
-    selected_face_aligned_.push_back(face);
-    selected_face_feature_.push_back(feature);
-    selected_face_H_.push_back(H);
-    selected_face_inv_H_.push_back(inv_H);
-    selected_face_ver_valid_.push_back(match);
-    selected_face_ver_valid_num_ += match ? 1 : 0;
-    selected_faces_num_ ++;
+    _selected_face_aligned.push_back(face);
+    _selected_face_feature.push_back(feature);
+    _selected_face_H.push_back(H);
+    _selected_face_inv_H.push_back(inv_H);
+    _selected_face_ver_valid.push_back(match);
+    _selected_face_ver_valid_num += match ? 1 : 0;
+    _selected_faces_num ++;
 }
 
 void FaceProcessor::cleanSelectedFaces()
 {
-    selected_face_aligned_.clear();
-    selected_face_feature_.clear();
-    selected_face_H_.clear();
-    selected_face_inv_H_.clear();
-    selected_face_ver_valid_.clear();
-    selected_faces_num_ = 0;
-    selected_face_ver_valid_num_ = 0;
-    face_reg_need_ver_ = false;
+    _selected_face_aligned.clear();
+    _selected_face_feature.clear();
+    _selected_face_H.clear();
+    _selected_face_inv_H.clear();
+    _selected_face_ver_valid.clear();
+    _selected_faces_num = 0;
+    _selected_face_ver_valid_num = 0;
+    _face_reg_need_ver = false;
 }
 
 void FaceProcessor::timerEvent(QTimerEvent *ev)
 {
     // Timer to process camera frame.
-    if (ev->timerId() == frame_timer_.timerId())
+    if (ev->timerId() == _frame_timer.timerId())
     {
-    process(frame_);
+    process(_frame);
     qDebug()<<"FaceProcessor::timerEvent() frame released."<<endl;
-    frame_.release();
-    frame_timer_.stop();
+    _frame.release();
+    _frame_timer.stop();
     return;
     }
 
     // Timer to save face repository.
-    if(ev->timerId() == save_timer_.timerId() && NULL != face_repo_)
+    if(ev->timerId() == _save_timer.timerId() && NULL != _face_repo)
     {
-        save_timer_.stop();
-        if (face_repo_is_dirty_)
+        _save_timer.stop();
+        if (_face_repo_is_dirty)
         {
-            face_repo_->Save(face_repo_path_);
-            face_repo_is_dirty_ = false;
+            _face_repo->Save(_face_repo_path);
+            _face_repo_is_dirty = false;
         }
-        save_timer_.start(FACE_REPO_TIME_INTERVAL_TO_SAVE*1000, this);
+        _save_timer.start(FACE_REPO_TIME_INTERVAL_TO_SAVE*1000, this);
     }
 }
 
@@ -594,34 +581,34 @@ void FaceProcessor::queue(const cv::Mat &frame)
     if (!frame.empty())
         qDebug() << "FaceProcessor::queue() Converter dropped frame !";
 
-    frame_ = frame;
+    _frame = frame;
     // Lock current frame by timer.
-    if (!frame_timer_.isActive())
-        frame_timer_.start(0, this);
+    if (!_frame_timer.isActive())
+        _frame_timer.start(0, this);
 }
 
 void FaceProcessor::slotRegister(bool start, QString name)
 {
     cleanSelectedFaces();
     if (start)
-        work_state_ = STATE_REGISTER;
+        _work_state = STATE_REGISTER;
     else
-        work_state_ = STATE_DEFAULT;
+        _work_state = STATE_DEFAULT;
     if (!name.isEmpty())
-        face_reg_ver_name_ = name.toStdString();
+        _face_reg_ver_name = name.toStdString();
 }
 
 void FaceProcessor::slotVerification(bool start, QString name)
 {
     cleanSelectedFaces();
     if (start)
-        work_state_ = STATE_VERIFICATION;
+        _work_state = STATE_VERIFICATION;
     else
-        work_state_ = STATE_DEFAULT;
+        _work_state = STATE_DEFAULT;
     if (!name.isEmpty())
-        face_reg_ver_name_ = name.toStdString();
+        _face_reg_ver_name = name.toStdString();
 
-    cout<<"FaceProcessor::slotVerification:  "<<face_reg_ver_name_<<endl;
+    cout<<"FaceProcessor::slotVerification:  "<<_face_reg_ver_name<<endl;
 }
 
 

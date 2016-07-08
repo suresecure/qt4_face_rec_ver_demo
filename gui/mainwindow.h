@@ -15,7 +15,7 @@ public:
     ~MainWindow();
 
 private:
-    MainWidget* display_;
+    MainWidget* _display;
 };
 
 #endif // MAINWINDOW_H
